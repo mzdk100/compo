@@ -1,0 +1,25 @@
+[package]
+name = "compo"
+description.workspace = true
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[workspace.package]
+description = """
+Compo is a general-purpose declarative and reactive component framework designed for single-threaded asynchronous execution, offering high performance and safety guarantees.
+Suitable for GUI scenarios or other similar non-GUI component systems.
+"""
+version = "0.1.0"
+edition = "2024"
+repository = "https://github.com/mzdk100/compo.git"
+license = "Apache-2.0"
+
+[workspace]
+members = ["macros"]
+resolver = "3"
+
+[dependencies]
+futures-util = "0.3.31"
+compo-macros.path = "macros"
