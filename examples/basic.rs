@@ -6,9 +6,9 @@ fn main() {
 
 #[component]
 async fn app() {
-    #[render]  // Rendering is deferred to the next polling
+    #[render] // Rendering is deferred to the next polling
     row {};
-    #[render]  // Component parameters can be omitted (using default values)
+    #[render] // Component parameters can be omitted (using default values)
     button {};
     println!("Hello, app!");
 }
@@ -16,7 +16,7 @@ async fn app() {
 #[component]
 async fn row() {
     let mut text = "Hello";
-    #[render]  // Renders a component, re-renders child component if dependent variables change
+    #[render] // Renders a component, re-renders child component if dependent variables change
     button { text: text };
     text = "world";
 }
@@ -27,5 +27,5 @@ async fn button(#[default = "hello"] text: &str, #[doc = "width"] width: u32) {
     // Fields are automatically added to internal struct (not exposed), values can be changed but won't trigger re-render of dependent child components
     let id: i32 = 0;
     println!("{}, {}", text, id);
-    *id = 1;  // Field lifetime is same as run function, so value can be reused across multiple renders
+    *id = 1; // Field lifetime is same as run function, so value can be reused across multiple renders
 }

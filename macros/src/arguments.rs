@@ -125,37 +125,37 @@ pub(super) fn handle_arguments(
                 attrs.clear();
 
                 var_bindings.push(ts!(
-                    "{} let {} = &this.{};",
+                    "{} let {} = this.get_{}();",
                     attrs_str,
                     property_name,
                     property_name
                 ));
                 field_defines.push(ts!(
-                    "{} {}: {},",
+                    "{} {}: RefCell<{}>,",
                     attrs_str,
                     property_name,
                     property_type.replace("&", "&'a ")
                 ));
                 let property_default_value = if default_value.is_empty() {
-                    "Default::default()".to_owned()
+                    format!("{}::default()", property_type)
                 } else {
                     default_value.iter().map(|i| i.to_string()).collect()
                 };
                 field_initializers.push(ts!(
-                    "{} {}: {},",
+                    "{} {}: {}.into(),",
                     attrs_str,
                     property_name,
                     property_default_value
                 ));
                 field_getters_and_setters.push(ts!(
-                    "{} pub fn get_{}(&self) -> &{} {{ &self.{} }}",
+                    "{} pub fn get_{}(&self) -> {} {{ *self.{}.borrow() }}",
                     attrs_str,
                     property_name,
                     property_type.replace("&", "&'a "),
                     property_name
                 ));
                 field_getters_and_setters.push(ts!(
-                    "{} pub fn set_{}(&mut self, value: {}) {{ self.{} = value }}",
+                    "{} pub fn set_{}(&self, value: {}) {{ *self.{}.borrow_mut() = value }}",
                     attrs_str,
                     property_name,
                     property_type.replace("&", "&'a "),
