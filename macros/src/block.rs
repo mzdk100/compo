@@ -5,6 +5,7 @@ mod macros;
 use {
     crate::utils::to_camel,
     proc_macro::{Delimiter, TokenStream, TokenTree},
+    std::collections::HashMap,
 };
 
 pub(super) fn handle_block(
@@ -20,6 +21,7 @@ pub(super) fn handle_block(
     let mut stmts = Vec::new();
     let mut component_name_index = 0;
     let mut stmt = Vec::new();
+    let mut refer_to_component = HashMap::<_, HashMap<_, (String, Vec<_>)>>::new();
 
     while let Some(tree) = iter.next() {
         match tree {
@@ -228,8 +230,9 @@ pub(super) fn handle_block(
                         component_id,
                         component_name_camel
                     ));
+
                     let mut iter = g.stream().into_iter();
-                    if let Some(i) = iter.next() {
+                    while let Some(i) = iter.next() {
                         let property_name = i.to_string();
                         let mut property_value = property_name.clone();
                         match iter.next() {
@@ -264,7 +267,21 @@ pub(super) fn handle_block(
                             component_id,
                             property_name,
                             property_value
-                        ))
+                        ));
+                        if !refer_to_component.contains_key(&property_value) {
+                            refer_to_component.insert(property_value.clone(), Default::default());
+                        }
+                        if let Some(components) = refer_to_component.get_mut(&property_value) {
+                            if !components.contains_key(&component_name) {
+                                components.insert(
+                                    component_name.clone(),
+                                    (component_id.clone(), Default::default()),
+                                );
+                            }
+                            if let Some((_, properties)) = components.get_mut(&component_name) {
+                                properties.push(property_name);
+                            }
+                        }
                     }
                     stmts.push(ts!(
                         "this.spawn({}(Rc::downgrade(&this.{})));",
@@ -282,6 +299,31 @@ pub(super) fn handle_block(
                     && p.as_char() == ';'
                 {
                     stmts.push(TokenStream::from_iter(stmt.clone()));
+                    let mut iter = stmt.iter();
+                    while let Some(i) = iter.next() {
+                        if let TokenTree::Ident(ident) = i
+                            && let Some(c) = refer_to_component.get(&ident.to_string())
+                            && let Some(TokenTree::Punct(p)) = iter.next()
+                            && p.as_char() == '='
+                        {
+                            for (component_name, (component_id, properties)) in c.iter() {
+                                for proprty_name in properties.iter() {
+                                    stmts.push(ts!(
+                                        "this.{}.set_{}({});",
+                                        component_id,
+                                        proprty_name,
+                                        i
+                                    ));
+                                }
+                                stmts.push(ts!(
+                                    "this.spawn({}(Rc::downgrade(&this.{})));",
+                                    component_name,
+                                    component_id
+                                ));
+                            }
+                            break;
+                        }
+                    }
                     stmt.clear();
                 }
             }

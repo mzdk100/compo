@@ -12,7 +12,7 @@ use {
 };
 
 #[proc_macro_attribute]
-pub fn component(attr: TokenStream, item: TokenStream) -> TokenStream {
+pub fn component(attrs: TokenStream, item: TokenStream) -> TokenStream {
     let mut iter = item.into_iter();
     let mut ident = iter.next();
     let vis = if let Some(TokenTree::Ident(i)) = &ident
@@ -62,7 +62,8 @@ pub fn component(attr: TokenStream, item: TokenStream) -> TokenStream {
         .map(|i| i.to_string())
         .collect::<String>();
     let component_struct = ts!(
-        "{} struct {} <'a> {{\n_rt: Weak<Runtime<'a, ()>>,\n{}\n}}",
+        "{}\n{} struct {} <'a> {{\n_rt: Weak<Runtime<'a, ()>>,\n{}\n}}",
+        attrs,
         vis,
         component_name_camel,
         field_defines
@@ -84,17 +85,20 @@ pub fn component(attr: TokenStream, item: TokenStream) -> TokenStream {
         .map(|i| i.to_string())
         .collect::<String>();
     let component_impl = ts!(
-        "impl<'a> Component<'a> for {} <'a> {{\n{}\n{}\n}}\nimpl<'a> {} <'a> {{\n{}\n}}",
+        "{}\nimpl<'a> Component<'a> for {} <'a> {{\n{}\n{}\n}}\n{}\nimpl<'a> {} <'a> {{\n{}\n}}",
+        attrs,
         component_name_camel,
         component_new,
         component_get_rt,
+        attrs,
         component_name_camel,
         component_field_getters_and_setters
     );
     ts!(
-        "{}\n{}\n{} async fn {}({}) {}",
+        "{}\n{}\n{}\n{} async fn {}({}) {}",
         component_struct,
         component_impl,
+        attrs,
         vis,
         component_name,
         component_arguments,

@@ -41,9 +41,9 @@ fn main() {
 
 #[component]
 async fn app() {
-    #[render]
+    #[render] // 渲染被推迟到下一次轮询
     row {};
-    #[render]
+    #[render] // 组件参数可以省略（使用默认值）
     button {};
     println!("Hello, app!");
 }
@@ -51,19 +51,41 @@ async fn app() {
 #[component]
 async fn row() {
     let mut text = "Hello";
-    #[render]
-    button { text: text };
-    text = "world";
+    #[render] // 渲染一个组件，如果依赖变量发生变化，则重新渲染子组件
+    button {
+        text: text,
+        width: 32,
+    };
+    text = "world"; // 将重新渲染button组件
 }
 
 #[component]
 async fn button(#[default = "hello"] text: &str, #[doc = "width"] width: u32) {
     #[field]
+    // 字段会自动添加到内部结构体（不暴露），值可以更改但不会触发依赖子组件的重新渲染
     let id: i32 = 0;
     println!("{}, {}", text, id);
-    *id = 1;
+    *id = 1; // 字段的生命周期与run函数相同，因此值可以在多次渲染中重复使用
 }
 ```
+
+### 运行示例
+
+当你使用 `cargo run --example basic` 运行这个示例时，你将看到以下输出：
+
+```
+Hello, app!
+hello, 0
+world, 0
+world, 1
+```
+
+这个输出演示了：
+
+1. app组件打印 "Hello, app!"
+2. button组件首次渲染时使用默认文本 "hello" 和 id=0
+3. 当文本变为 "world" 时，button组件重新渲染并使用新的文本值
+4. 在第二次渲染期间，id字段保留了上一次渲染中更新的值(1)
 
 ## API 文档
 

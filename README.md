@@ -44,9 +44,9 @@ fn main() {
 
 #[component]
 async fn app() {
-    #[render]
+    #[render] // Rendering is deferred to the next polling
     row {};
-    #[render]
+    #[render] // Component parameters can be omitted (using default values)
     button {};
     println!("Hello, app!");
 }
@@ -54,19 +54,41 @@ async fn app() {
 #[component]
 async fn row() {
     let mut text = "Hello";
-    #[render]
-    button { text: text };
-    text = "world";
+    #[render] // Renders a component, re-renders child component if dependent variables change
+    button {
+        text: text,
+        width: 32,
+    };
+    text = "world"; // Will re-render the button component
 }
 
 #[component]
 async fn button(#[default = "hello"] text: &str, #[doc = "width"] width: u32) {
     #[field]
+    // Fields are automatically added to internal struct (not exposed), values can be changed but won't trigger re-render of dependent child components
     let id: i32 = 0;
     println!("{}, {}", text, id);
-    *id = 1;
+    *id = 1; // Field lifetime is same as run function, so value can be reused across multiple renders
 }
 ```
+
+### Running the Example
+
+When you run this example with `cargo run --example basic`, you'll see the following output:
+
+```
+Hello, app!
+hello, 0
+world, 0
+world, 1
+```
+
+This output demonstrates:
+
+1. The app component prints "Hello, app!"
+2. The button component first renders with default text "hello" and id=0
+3. When text changes to "world", the button re-renders with the new text value
+4. During the second render, the id field retains its updated value (1) from the previous render
 
 ## API Documentation
 

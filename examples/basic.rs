@@ -17,8 +17,11 @@ async fn app() {
 async fn row() {
     let mut text = "Hello";
     #[render] // Renders a component, re-renders child component if dependent variables change
-    button { text: text };
-    text = "world";
+    button {
+        text: text,
+        width: 32,
+    };
+    text = "world"; // Will re-render the button component
 }
 
 #[component]
