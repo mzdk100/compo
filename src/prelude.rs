@@ -3,10 +3,11 @@ pub use {
         component::Component,
         runtime::{Runtime, run},
     },
+    compo_macros::component,
     futures_util::join,
     std::{
-        cell::RefCell,
+        cell::UnsafeCell,
+        mem::transmute,
         rc::{Rc, Weak},
     },
-    compo_macros::component,
 };

@@ -172,12 +172,17 @@ pub(super) fn handle_block(
                         .map(|i| format!("#[{}]", i))
                         .collect::<String>();
                     var_bindings.push(ts!(
-                        "{} let mut {} = this.{}.borrow_mut();",
+                        "{} let {}: &mut _ = unsafe {{ transmute(this.{}.get()) }};",
                         attrs,
                         field_name,
                         field_name
                     ));
-                    field_defines.push(ts!("{} {}: RefCell<{}>,", attrs, field_name, field_type));
+                    field_defines.push(ts!(
+                        "{} {}: UnsafeCell<{}>,",
+                        attrs,
+                        field_name,
+                        field_type
+                    ));
                     field_initializers.push(ts!(
                         "{} {}: {}.into(),",
                         attrs,

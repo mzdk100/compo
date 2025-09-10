@@ -131,7 +131,7 @@ pub(super) fn handle_arguments(
                     property_name
                 ));
                 field_defines.push(ts!(
-                    "{} {}: RefCell<{}>,",
+                    "{} {}: UnsafeCell<{}>,",
                     attrs_str,
                     property_name,
                     property_type.replace("&", "&'a ")
@@ -148,14 +148,14 @@ pub(super) fn handle_arguments(
                     property_default_value
                 ));
                 field_getters_and_setters.push(ts!(
-                    "{} pub fn get_{}(&self) -> {} {{ *self.{}.borrow() }}",
+                    "{} pub fn get_{}(&self) -> &{} {{\nunsafe {{ transmute(self.{}.get()) }}\n}}",
                     attrs_str,
                     property_name,
                     property_type.replace("&", "&'a "),
                     property_name
                 ));
                 field_getters_and_setters.push(ts!(
-                    "{} pub fn set_{}(&self, value: {}) {{ *self.{}.borrow_mut() = value }}",
+                    "{} pub fn set_{}(&self, value: {}) {{\nunsafe {{ *self.{}.get() = value }}\n}}",
                     attrs_str,
                     property_name,
                     property_type.replace("&", "&'a "),
