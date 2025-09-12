@@ -103,11 +103,13 @@ pub(super) fn handle_arguments(
                     .map(|i| i.to_string())
                     .collect::<String>();
                 let mut default_value = Vec::new();
+                let mut is_event = false;
                 let attrs_str = attrs
                     .iter()
                     .filter(|i| {
                         let mut iter = i.to_owned().to_owned().into_iter();
-                        if let Some(TokenTree::Ident(i)) = iter.next()
+                        let item = iter.next();
+                        if let Some(TokenTree::Ident(i)) = &item
                             && i.to_string() == "default"
                             && let Some(TokenTree::Punct(p)) = iter.next()
                             && p.as_char() == '='
@@ -115,6 +117,11 @@ pub(super) fn handle_arguments(
                             while let Some(i) = iter.next() {
                                 default_value.push(i);
                             }
+                            false
+                        } else if let Some(TokenTree::Ident(i)) = &item
+                            && i.to_string() == "event"
+                        {
+                            is_event = true;
                             false
                         } else {
                             true
@@ -130,37 +137,68 @@ pub(super) fn handle_arguments(
                     property_name,
                     property_name
                 ));
-                field_defines.push(ts!(
-                    "{} {}: UnsafeCell<{}>,",
-                    attrs_str,
-                    property_name,
-                    property_type.replace("&", "&'a ")
-                ));
-                let property_default_value = if default_value.is_empty() {
-                    format!("{}::default()", property_type)
+                field_defines.push(if is_event {
+                    ts!(
+                        "{} {}: UnsafeCell<EventEmitter<'a, {}>>,",
+                        attrs_str,
+                        property_name,
+                        property_type.replace("&", "&'a ")
+                    )
                 } else {
-                    default_value.iter().map(|i| i.to_string()).collect()
-                };
-                field_initializers.push(ts!(
-                    "{} {}: {}.into(),",
-                    attrs_str,
-                    property_name,
-                    property_default_value
-                ));
-                field_getters_and_setters.push(ts!(
-                    "{} pub fn get_{}(&self) -> &{} {{\nunsafe {{ transmute(self.{}.get()) }}\n}}",
-                    attrs_str,
-                    property_name,
-                    property_type.replace("&", "&'a "),
-                    property_name
-                ));
-                field_getters_and_setters.push(ts!(
-                    "{} pub fn set_{}(&self, value: {}) {{\nunsafe {{ *self.{}.get() = value }}\n}}",
-                    attrs_str,
-                    property_name,
-                    property_type.replace("&", "&'a "),
-                    property_name
-                ))
+                    ts!(
+                        "{} {}: UnsafeCell<{}>,",
+                        attrs_str,
+                        property_name,
+                        property_type.replace("&", "&'a ")
+                    )
+                });
+                if is_event {
+                    field_initializers.push(ts!(
+                        "{} {}: EventEmitter::default().into(),",
+                        attrs_str,
+                        property_name
+                    ));
+                    field_getters_and_setters.push(ts!(
+                        "{} pub fn get_{}(&self) -> &EventEmitter<'a, {}> {{\nunsafe {{ transmute(self.{}.get()) }}\n}}",
+                        attrs_str,
+                        property_name,
+                        property_type.replace("&", "&'a "),
+                        property_name
+                    ));
+                    field_getters_and_setters.push(ts!(
+                        "{} pub fn set_{}(&self, value: &EventListener<'a, {}>) {{\nunsafe {{\n*self.{}.get() = value.new_emitter()\n}}\n}}",
+                        attrs_str,
+                        property_name,
+                        property_type.replace("&", "&'a "),
+                        property_name
+                    ))
+                } else {
+                    let property_default_value = if default_value.is_empty() {
+                        format!("<{}>::default()", property_type)
+                    } else {
+                        default_value.iter().map(|i| i.to_string()).collect()
+                    };
+                    field_initializers.push(ts!(
+                        "{} {}: {}.into(),",
+                        attrs_str,
+                        property_name,
+                        property_default_value
+                    ));
+                    field_getters_and_setters.push(ts!(
+                        "{} pub fn get_{}(&self) -> &{} {{\nunsafe {{ transmute(self.{}.get()) }}\n}}",
+                        attrs_str,
+                        property_name,
+                        property_type.replace("&", "&'a "),
+                        property_name
+                    ));
+                    field_getters_and_setters.push(ts!(
+                        "{} pub fn set_{}(&self, value: &{}) {{\nunsafe {{ *self.{}.get() = *value }}\n}}",
+                        attrs_str,
+                        property_name,
+                        property_type.replace("&", "&'a "),
+                        property_name
+                    ))
+                }
             }
         }
     }

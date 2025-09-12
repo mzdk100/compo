@@ -48,6 +48,17 @@ async fn app() {
     row {};
     #[render] // Component parameters can be omitted (using default values)
     button {};
+    
+    let tick_listener = Default::default(); // Create an event listener
+    #[render]
+    countdown {
+        on_tick: tick_listener, // If a child component emits an event, the listener can receive it
+    };
+    while let Some(i) = tick_listener.listen().await.as_ref() {
+        // Receive events from the countdown component
+        println!("{} seconds.", i);
+    }
+    
     println!("Hello, app!");
 }
 
@@ -70,6 +81,16 @@ async fn button(#[default = "hello"] text: &str, #[doc = "width"] width: u32) {
     println!("{}, {}", text, id);
     *id = 1; // Field lifetime is same as run function, so value can be reused across multiple renders
 }
+
+#[component]
+async fn countdown(#[event] on_tick: Option<u32>) {
+    // Emit events for the parent component to receive
+    for i in (0..10).rev() {
+        let _ = on_tick.emit(Some(i));
+        sleep(Duration::from_secs(1)).await;
+    }
+    let _ = on_tick.emit(None);
+}
 ```
 
 ### Running the Example
@@ -77,18 +98,29 @@ async fn button(#[default = "hello"] text: &str, #[doc = "width"] width: u32) {
 When you run this example with `cargo run --example basic`, you'll see the following output:
 
 ```
-Hello, app!
 hello, 0
+9 seconds.
 world, 0
 world, 1
+8 seconds.
+7 seconds.
+6 seconds.
+5 seconds.
+4 seconds.
+3 seconds.
+2 seconds.
+1 seconds.
+0 seconds.
+Hello, app!
 ```
 
 This output demonstrates:
 
-1. The app component prints "Hello, app!"
-2. The button component first renders with default text "hello" and id=0
-3. When text changes to "world", the button re-renders with the new text value
-4. During the second render, the id field retains its updated value (1) from the previous render
+1. The button component first renders with default text "hello" and id=0
+2. The countdown component starts emitting events with countdown values from 9 to 0
+3. The button component re-renders with text "world" and id=0, then again with id=1
+4. The app component continues receiving countdown events
+5. After the countdown completes, the app component prints "Hello, app!"
 
 ## API Documentation
 
@@ -104,6 +136,10 @@ Marks child components for rendering. If dependent variables change, the child c
 ### `#[field]` Attribute
 
 Defines internal fields for components, with lifetimes matching the `run` function.
+
+### `#[event]` Attribute
+
+Marks a component parameter as an event emitter. This allows child components to send events to their parent components. The parameter should be of type `Option<T>`, where `T` is the type of data to be emitted. Events can be emitted using the `.emit()` method and received by the parent component using the `.listen().await` method.
 
 ## Contributing
 
