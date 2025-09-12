@@ -32,8 +32,7 @@ impl Future for Sleep {
 /// # Examples
 ///
 /// ```
-/// use std::time::Duration;
-/// use compo::sleep;
+/// use compo::prelude::*;
 ///
 /// async fn example() {
 ///     // Sleep for 100 milliseconds
