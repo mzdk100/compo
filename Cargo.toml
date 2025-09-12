@@ -2,8 +2,12 @@
 name = "compo"
 description.workspace = true
 version.workspace = true
+authors.workspace = true
+categories.workspace = true
 edition.workspace = true
+keywords.workspace = true
 license.workspace = true
+readme.workspace = true
 repository.workspace = true
 
 [workspace.package]
@@ -15,13 +19,17 @@ version = "0.1.0"
 edition = "2024"
 repository = "https://github.com/mzdk100/compo.git"
 license = "Apache-2.0"
+authors = ["SmileSky <mzdk100@qq.com>"]
+keywords = ["component", "reactive", "declarative", "async", "framework"]
+categories = ["asynchronous", "gui", "rust-patterns"]
+readme = "README.md"
 
 [workspace]
 members = ["macros"]
 resolver = "3"
 
 [dependencies]
-compo-macros.path = "macros"
+compo-macros = { version = "0.1.0", path = "macros" }
 futures-util = "0.3.31"
 
 [dev-dependencies]
