@@ -1,6 +1,7 @@
 use {
-    crate::utils::to_camel,
-    proc_macro::{Delimiter, TokenStream, TokenTree},
+    super::stmt::handle_stmt,
+    crate::utils::{take_while, to_camel},
+    proc_macro::{Delimiter, Punct, Spacing, TokenStream, TokenTree},
     std::collections::HashMap,
 };
 
@@ -83,46 +84,45 @@ pub(super) fn handle_block_recursively(
                             return error!(block, "Expected ':', got eof");
                         }
                     }
-                    let Some(token) = iter.next() else {
-                        return error!(block, "Expected ident (field type)");
-                    };
-                    let field_type = token.to_string();
-                    match iter.next() {
-                        Some(TokenTree::Punct(p)) if p.as_char() == '=' => (),
-                        Some(t) => {
+
+                    let field_type = match take_while(
+                        &mut iter,
+                        &TokenTree::Punct(Punct::new('=', Spacing::Alone)),
+                    ) {
+                        Err(s) => {
                             return error!(
                                 block,
-                                t.span(),
-                                "Expected '=', got `{}` (field `{}` must be initialized with a value)",
-                                t,
+                                s,
+                                "Expected '=', got eof (field `{}` must be initialized with a value)",
                                 field_name
                             );
                         }
-                        None => {
-                            return error!(block, "Expected '=', got eof");
+                        Ok(f) if f.is_empty() => {
+                            return error!(block, t.span(), "Expected type (field type), got '='");
                         }
-                    }
-                    let Some(field_value) = iter.next() else {
-                        return error!(block, "Expected a value (field initializer)");
+                        Ok(f) => f,
                     };
-                    match iter.next() {
-                        Some(TokenTree::Punct(p)) if p.as_char() == ';' => (),
-                        Some(t) => {
-                            return error!(block, t.span(), "Expected ';', got `{}`", t);
+
+                    let field_value = match take_while(
+                        &mut iter,
+                        &TokenTree::Punct(Punct::new(';', Spacing::Alone)),
+                    ) {
+                        Err(s) => return error!(block, s, "Expected ';', got eof"),
+                        Ok(f) if f.is_empty() => {
+                            return error!(block, t.span(), "Expected expr (field value), got ';'");
                         }
-                        None => {
-                            return error!(block, "Expected ';', got eof");
-                        }
-                    }
+                        Ok(f) => f,
+                    };
 
                     let attrs = attrs
                         .iter()
                         .map(|i| format!("#[{}]", i))
                         .collect::<String>();
                     var_bindings.push(ts!(
-                        "{} let {}: &mut _ = unsafe {{ transmute(this.{}.get()) }};",
+                        "{} let {}: &mut {} = unsafe {{ transmute(this.{}.get()) }};",
                         attrs,
                         field_name,
+                        field_type,
                         field_name
                     ));
                     field_defines.push(ts!(
@@ -175,19 +175,19 @@ pub(super) fn handle_block_recursively(
                     let mut iter = g.stream().into_iter();
                     while let Some(i) = iter.next() {
                         let property_name = i.to_string();
-                        let mut property_value = property_name.clone();
-                        match iter.next() {
+                        let property_value = match iter.next() {
+                            Some(TokenTree::Punct(p)) if p.as_char() == ',' => {
+                                property_name.clone()
+                            }
                             Some(TokenTree::Punct(p)) if p.as_char() == ':' => {
-                                let mut value = Vec::new();
-                                while let Some(i) = iter.next() {
-                                    if let TokenTree::Punct(p) = &i
-                                        && p.as_char() == ','
-                                    {
-                                        break;
-                                    }
-                                    value.push(i);
+                                let iter2 = iter.clone();
+                                match take_while(
+                                    &mut iter,
+                                    &TokenTree::Punct(Punct::new(',', Spacing::Alone)),
+                                ) {
+                                    Ok(f) => f.to_string(),
+                                    Err(_) => iter2.map(|i| i.to_string()).collect(),
                                 }
-                                property_value = value.iter().map(|i| i.to_string()).collect();
                             }
                             Some(t) => {
                                 return error!(
@@ -197,8 +197,14 @@ pub(super) fn handle_block_recursively(
                                     t
                                 );
                             }
-                            None => (),
-                        }
+                            None => {
+                                return error!(
+                                    block,
+                                    t.span(),
+                                    "Expected comma ',' or colon ':', got eof"
+                                );
+                            }
+                        };
                         stmts.push(ts!(
                             "this.{}.set_{}(&{});",
                             component_id,
@@ -235,33 +241,7 @@ pub(super) fn handle_block_recursively(
                 if let TokenTree::Punct(p) = &t
                     && p.as_char() == ';'
                 {
-                    stmts.push(TokenStream::from_iter(stmt.clone()));
-                    let mut iter = stmt.iter();
-                    while let Some(i) = iter.next() {
-                        if let TokenTree::Ident(ident) = i
-                            && let Some(c) = refer_to_component.get(&ident.to_string())
-                            && let Some(TokenTree::Punct(p)) = iter.next()
-                            && p.as_char() == '='
-                        {
-                            for (component_name, (component_id, properties)) in c.iter() {
-                                for property_name in properties.iter() {
-                                    stmts.push(ts!(
-                                        "this.{}.set_{}(&{});",
-                                        component_id,
-                                        property_name,
-                                        i
-                                    ));
-                                }
-                                stmts.push(ts!(
-                                    "this.spawn({}(Rc::downgrade(&this.{})));",
-                                    component_name,
-                                    component_id
-                                ));
-                            }
-                            break;
-                        }
-                    }
-                    stmt.clear();
+                    handle_stmt(stmts, &mut stmt, refer_to_component);
                 } else if let TokenTree::Group(g) = &t
                     && g.delimiter() == Delimiter::Brace
                 {
@@ -289,8 +269,8 @@ pub(super) fn handle_block_recursively(
             }
         }
     }
-    if let Some(t) = stmt.iter().last() {
-        return error!(block, t.span(), "Incomplete statement at: {}", t);
+    if stmt.iter().last().is_some() {
+        handle_stmt(stmts, &mut stmt, refer_to_component);
     }
 
     Default::default()

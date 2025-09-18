@@ -2,7 +2,8 @@ pub use {
     crate::{
         component::Component,
         event::{EventEmitter, EventListener},
-        runtime::{Runtime, run},
+        r#loop::{Loop, run},
+        runtime::Runtime,
         time::{Duration, sleep},
     },
     compo_macros::component,

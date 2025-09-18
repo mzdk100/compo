@@ -2,6 +2,7 @@
 #[macro_use]
 mod macros;
 mod recurse;
+mod stmt;
 
 use {
     crate::utils::to_camel, proc_macro::TokenStream, recurse::handle_block_recursively,

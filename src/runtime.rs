@@ -1,13 +1,12 @@
 use {
-    crate::component::Component,
     futures_util::{FutureExt, future::LocalBoxFuture},
     std::{
         cell::{Cell, RefCell},
-        rc::{Rc, Weak},
         task::{Context, Waker},
     },
 };
 
+//noinspection SpellCheckingInspection
 pub struct Runtime<'a, R> {
     context: RefCell<Context<'a>>,
     pendings: RefCell<Vec<LocalBoxFuture<'a, R>>>,
@@ -62,20 +61,5 @@ impl<'a, R> Runtime<'a, R> {
 
         // 标记结束执行 poll_all
         self.polling.set(false);
-    }
-}
-
-pub fn run<'a, F, C>(entry: F) -> !
-where
-    C: Component<'a> + 'a,
-    F: AsyncFn(Weak<C>) + 'a,
-{
-    let rt = Rc::new(Runtime::new());
-    let rt_weak = Rc::downgrade(&rt);
-    let c = Rc::new(C::new(rt_weak.clone()));
-    let c_weak = Rc::downgrade(&c);
-    rt.spawn(async move { entry(c_weak).await });
-    loop {
-        rt.poll_all();
     }
 }

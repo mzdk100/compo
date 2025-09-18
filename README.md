@@ -12,7 +12,7 @@ Suitable for GUI scenarios or other similar non-GUI component systems.
 
 ## Features
 
-- **Concise Syntax**: Eliminates 99% of unnecessary boilerplate code, making it simple to use.
+- **Concise Syntax**: Ergonomic design, eliminates 99% of unnecessary boilerplate code, making it simple to use.
 - **Declarative Components**: Easily define components using the `#[component]` macro.
 - **Reactive Rendering**: Automatically re-renders child components when dependent variables change.
 - **Minimal Trait Dependencies**: No `Send`/`Sync` or `'static` constraints, and no cross-thread synchronization
@@ -121,6 +121,8 @@ This output demonstrates:
 3. The button component re-renders with text "world" and id=0, then again with id=1
 4. The app component continues receiving countdown events
 5. After the countdown completes, the app component prints "Hello, app!"
+
+For more advanced usage of the compo library, please refer to the examples in the [examples](examples) directory.
 
 ## API Documentation
 
