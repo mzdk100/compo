@@ -1,3 +1,5 @@
+#![cfg(windows)]
+
 use {
     compo::prelude::*,
     std::time::Duration,
