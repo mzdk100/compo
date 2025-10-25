@@ -14,7 +14,7 @@ pub(super) fn handle_block_recursively(
     field_initializers: &mut Vec<TokenStream>,
     component_name_index: &mut u32,
     stmts: &mut Vec<TokenStream>,
-    refer_to_component: &mut HashMap<String, HashMap<String, (String, Vec<String>)>>,
+    refer_to_component: &mut HashMap<String, HashMap<String, Vec<String>>>,
 ) -> TokenStream {
     let mut iter = stream.clone().into_iter();
     let mut stmt = Vec::new();
@@ -216,12 +216,9 @@ pub(super) fn handle_block_recursively(
                         }
                         if let Some(components) = refer_to_component.get_mut(&property_value) {
                             if !components.contains_key(&component_name) {
-                                components.insert(
-                                    component_name.clone(),
-                                    (component_id.clone(), Default::default()),
-                                );
+                                components.insert(component_id.clone(), Default::default());
                             }
-                            if let Some((_, properties)) = components.get_mut(&component_name) {
+                            if let Some(properties) = components.get_mut(&component_id) {
                                 properties.push(property_name);
                             }
                         }

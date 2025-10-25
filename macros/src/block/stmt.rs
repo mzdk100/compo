@@ -6,7 +6,7 @@ use {
 pub(super) fn handle_stmt(
     stmts: &mut Vec<TokenStream>,
     stmt: &mut Vec<TokenTree>,
-    refer_to_component: &mut HashMap<String, HashMap<String, (String, Vec<String>)>>,
+    refer_to_component: &mut HashMap<String, HashMap<String, Vec<String>>>,
 ) {
     stmts.push(TokenStream::from_iter(stmt.clone()));
     let mut iter = stmt.iter();
@@ -16,15 +16,11 @@ pub(super) fn handle_stmt(
             && let Some(TokenTree::Punct(p)) = iter.next()
             && p.as_char() == '='
         {
-            for (component_name, (component_id, properties)) in c.iter() {
+            for (component_id, properties) in c.iter() {
                 for property_name in properties.iter() {
                     stmts.push(ts!("this.{}.set_{}(&{});", component_id, property_name, i));
                 }
-                stmts.push(ts!(
-                    "this.spawn({}(Rc::downgrade(&this.{})));",
-                    component_name,
-                    component_id
-                ));
+                stmts.push(ts!("this.{}.update();", component_id));
             }
             break;
         }

@@ -62,7 +62,7 @@ pub fn component(attrs: TokenStream, item: TokenStream) -> TokenStream {
         .map(|i| i.to_string())
         .collect::<String>();
     let component_struct = ts!(
-        "{}\n{} struct {} <'a> {{\n_rt: Weak<Runtime<'a, ()>>,\n{}\n}}",
+        "{}\n{} struct {} <'a> {{\n_rt: Weak<Runtime<'a, ()>>,\n_cancellable: RefCell<Cancellable>,\n{}\n}}",
         attrs,
         vis,
         component_name_camel,
@@ -75,21 +75,26 @@ pub fn component(attrs: TokenStream, item: TokenStream) -> TokenStream {
         .collect::<String>();
 
     let component_new = ts!(
-        "fn new(rt: Weak<Runtime<'a, ()>>) -> Self {{ Self {{\n{}\n_rt: rt,\n}} }}",
+        "fn new(rt: Weak<Runtime<'a, ()>>) -> Self {{ Self {{\n{}\n_rt: rt,\n_cancellable: Default::default(),\n}} }}",
         field_initializers
     );
     let component_get_rt = ts!("fn get_rt(&self) -> Weak<Runtime<'a, ()>> {{ self._rt.clone() }}");
+    let component_update = ts!(
+        "fn update(self: &Rc<Self>) {{\nlet mut cancellable = self._cancellable.borrow_mut();\ncancellable.cancel();\n*cancellable = self.spawn({}(Rc::downgrade(self)));\n}}",
+        component_name
+    );
 
     let component_field_getters_and_setters = property_field_getters_and_setters
         .iter()
         .map(|i| i.to_string())
         .collect::<String>();
     let component_impl = ts!(
-        "{}\nimpl<'a> Component<'a> for {} <'a> {{\n{}\n{}\n}}\n{}\nimpl<'a> {} <'a> {{\n{}\n}}",
+        "{}\nimpl<'a> Component<'a> for {} <'a> {{\n{}\n{}\n{}\n}}\n{}\nimpl<'a> {} <'a> {{\n{}\n}}",
         attrs,
         component_name_camel,
         component_new,
         component_get_rt,
+        component_update,
         attrs,
         component_name_camel,
         component_field_getters_and_setters
